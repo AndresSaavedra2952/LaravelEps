@@ -3,21 +3,16 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
+use App\Models\Medico;
+use App\Models\Especialidad;
 
 class MedicoController extends Controller
 {
     public function index()
     {
         try {
-            $medicos = DB::table('medicos')
-                ->join('users', 'medicos.user_id', '=', 'users.id')
-                ->join('especialidades', 'medicos.especialidad_id', '=', 'especialidades.id')
-                ->select('medicos.*', 'users.email as user_email', 'users.name as user_name', 'especialidades.nombre as especialidad_nombre')
-                ->get();
-            
+            $medicos = Medico::with('especialidad')->get();
             return response()->json([
                 'success' => true,
                 'data' => $medicos
@@ -36,52 +31,33 @@ class MedicoController extends Controller
             $request->validate([
                 'nombre' => 'required|string',
                 'apellido' => 'required|string',
-                'email' => 'required|email|unique:users,email',
+                'email' => 'required|email|unique:medicos,email',
                 'password' => 'required|string|min:6',
                 'telefono' => 'required|string',
                 'numero_licencia' => 'required|string|unique:medicos,numero_licencia',
-                'especialidad_id' => 'required|integer|exists:especialidades,id',
+                'especialidad_id' => 'required|exists:especialidades,id'
             ]);
 
-            DB::beginTransaction();
-
-            // 1. Crear usuario en la tabla users
-            $user = User::create([
-                'name' => $request->nombre . ' ' . $request->apellido,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => 'medico',
-            ]);
-
-            // 2. Crear médico en la tabla medicos
-            $medicoId = DB::table('medicos')->insertGetId([
+            $medico = Medico::create([
                 'nombre' => $request->nombre,
                 'apellido' => $request->apellido,
                 'email' => $request->email,
+                'password' => Hash::make($request->password),
                 'telefono' => $request->telefono,
                 'numero_licencia' => $request->numero_licencia,
                 'especialidad_id' => $request->especialidad_id,
-                'activo' => 1,
-                'user_id' => $user->id,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'activo' => 1
             ]);
-
-            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Médico creado exitosamente',
-                'data' => [
-                    'user_id' => $user->id,
-                    'medico_id' => $medicoId
-                ]
+                'data' => $medico
             ], 201);
         } catch (\Exception $e) {
-            DB::rollback();
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error al crear médico: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -89,13 +65,14 @@ class MedicoController extends Controller
     public function show($id)
     {
         try {
-            $medico = DB::table('medicos')
-                ->join('users', 'medicos.user_id', '=', 'users.id')
-                ->join('especialidades', 'medicos.especialidad_id', '=', 'especialidades.id')
-                ->select('medicos.*', 'users.email as user_email', 'users.name as user_name', 'especialidades.nombre as especialidad_nombre')
-                ->where('medicos.id', $id)
-                ->first();
-            
+            $medico = Medico::with('especialidad')->find($id);
+            if (!$medico) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Médico no encontrado'
+                ], 404);
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => $medico
@@ -111,10 +88,7 @@ class MedicoController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            DB::beginTransaction();
-
-            $medico = DB::table('medicos')->where('id', $id)->first();
-            
+            $medico = Medico::find($id);
             if (!$medico) {
                 return response()->json([
                     'success' => false,
@@ -122,28 +96,26 @@ class MedicoController extends Controller
                 ], 404);
             }
 
-            // Actualizar datos del médico
-            DB::table('medicos')->where('id', $id)->update([
+            $request->validate([
+                'nombre' => 'required|string',
+                'apellido' => 'required|string',
+                'telefono' => 'required|string',
+                'especialidad_id' => 'required|exists:especialidades,id'
+            ]);
+
+            $medico->update([
                 'nombre' => $request->nombre,
                 'apellido' => $request->apellido,
                 'telefono' => $request->telefono,
-                'updated_at' => now(),
+                'especialidad_id' => $request->especialidad_id
             ]);
-
-            // Actualizar datos del usuario
-            DB::table('users')->where('id', $medico->user_id)->update([
-                'name' => $request->nombre . ' ' . $request->apellido,
-                'updated_at' => now(),
-            ]);
-
-            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Médico actualizado exitosamente'
+                'message' => 'Médico actualizado exitosamente',
+                'data' => $medico
             ]);
         } catch (\Exception $e) {
-            DB::rollback();
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
@@ -154,10 +126,7 @@ class MedicoController extends Controller
     public function destroy($id)
     {
         try {
-            DB::beginTransaction();
-
-            $medico = DB::table('medicos')->where('id', $id)->first();
-            
+            $medico = Medico::find($id);
             if (!$medico) {
                 return response()->json([
                     'success' => false,
@@ -165,20 +134,13 @@ class MedicoController extends Controller
                 ], 404);
             }
 
-            // Eliminar médico
-            DB::table('medicos')->where('id', $id)->delete();
-            
-            // Eliminar usuario
-            DB::table('users')->where('id', $medico->user_id)->delete();
-
-            DB::commit();
+            $medico->delete();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Médico eliminado exitosamente'
             ]);
         } catch (\Exception $e) {
-            DB::rollback();
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar médico: ' . $e->getMessage()

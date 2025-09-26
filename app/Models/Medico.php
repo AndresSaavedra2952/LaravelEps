@@ -2,61 +2,39 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Sanctum\HasApiTokens;
 
 class Medico extends Model
 {
+    use HasFactory, HasApiTokens;
+
+    protected $table = 'medicos';
+    
     protected $fillable = [
         'nombre',
         'apellido',
         'email',
+        'password',
         'telefono',
         'numero_licencia',
         'especialidad_id',
-        'activo',
-        'user_id'
+        'activo'
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
 
     protected $casts = [
-        'activo' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
     ];
 
-    // Relación con usuario
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    // Relación con especialidad
     public function especialidad()
     {
         return $this->belongsTo(Especialidad::class);
-    }
-
-    // Relación con citas
-    public function citas()
-    {
-        return $this->hasMany(Cita::class);
-    }
-
-    // Scope para médicos activos
-    public function scopeActivos($query)
-    {
-        return $query->where('activo', true);
-    }
-
-    // Scope para buscar por nombre
-    public function scopePorNombre($query, $nombre)
-    {
-        return $query->where('nombre', 'like', '%' . $nombre . '%')
-                    ->orWhere('apellido', 'like', '%' . $nombre . '%');
-    }
-
-    // Scope para buscar por licencia
-    public function scopePorLicencia($query, $licencia)
-    {
-        return $query->where('numero_licencia', 'like', '%' . $licencia . '%');
     }
 }

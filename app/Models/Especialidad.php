@@ -9,17 +9,16 @@ class Especialidad extends Model
 {
     use HasFactory;
 
-    // Especificar el nombre de la tabla
     protected $table = 'especialidades';
-
+    
     protected $fillable = [
         'nombre',
         'descripcion',
-        'activo',
+        'activo'
     ];
 
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
+    public function medicos()
+    {
+        return $this->hasMany(Medico::class);
+    }
 }

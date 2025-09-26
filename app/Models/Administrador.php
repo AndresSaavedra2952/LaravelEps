@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Sanctum\HasApiTokens;
 
-class Paciente extends Model
+class Administrador extends Model
 {
     use HasFactory, HasApiTokens;
 
-    protected $table = 'pacientes';
+    protected $table = 'administradores';
     
     protected $fillable = [
         'nombre',
@@ -18,11 +18,6 @@ class Paciente extends Model
         'email',
         'password',
         'telefono',
-        'fecha_nacimiento',
-        'tipo_documento',
-        'numero_documento',
-        'direccion',
-        'eps_id',
         'activo'
     ];
 
@@ -35,9 +30,4 @@ class Paciente extends Model
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
-
-    public function eps()
-    {
-        return $this->belongsTo(Eps::class);
-    }
 }
