@@ -1,32 +1,29 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
         Schema::create('citas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('paciente_id')->constrained('pacientes');
-            $table->foreignId('medico_id')->constrained('medicos');
-            $table->dateTime('fecha_hora');
-            $table->enum('estado', ['programada', 'confirmada', 'cancelada', 'completada'])->default('programada');
-            $table->text('motivo_consulta');
-            $table->text('observaciones')->nullable();
+            $table->unsignedBigInteger('paciente_id');
+            $table->unsignedBigInteger('medico_id');
+            $table->date('fecha'); // ← AGREGAR ESTA LÍNEA
+            $table->time('hora'); // ← AGREGAR ESTA LÍNEA
+            $table->text('motivo');
+            $table->enum('estado', ['programada', 'confirmada', 'completada', 'cancelada'])->default('programada');
+            $table->boolean('activo')->default(true);
             $table->timestamps();
+            
+            $table->foreign('paciente_id')->references('id')->on('pacientes');
+            $table->foreign('medico_id')->references('id')->on('medicos');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('citas');
     }

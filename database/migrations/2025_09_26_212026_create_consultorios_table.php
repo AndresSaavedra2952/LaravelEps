@@ -8,13 +8,12 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('eps', function (Blueprint $table) {
+        Schema::create('consultorios', function (Blueprint $table) {
             $table->id();
             $table->string('nombre');
-            $table->string('nit')->unique();
-            $table->string('direccion');
+            $table->string('ubicacion');
             $table->string('telefono');
-            $table->string('email')->unique();
+            $table->text('descripcion')->nullable();
             $table->boolean('activo')->default(true);
             $table->timestamps();
         });
@@ -22,6 +21,6 @@ return new class extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('eps');
+        Schema::dropIfExists('consultorios');
     }
 };

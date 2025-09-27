@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Especialidad;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EspecialidadController extends Controller
 {
     public function index()
     {
         try {
-            $especialidades = Especialidad::all();
+            $especialidades = DB::table('especialidades')->get();
             return response()->json([
                 'success' => true,
                 'data' => $especialidades
@@ -26,12 +26,22 @@ class EspecialidadController extends Controller
     public function store(Request $request)
     {
         try {
+            // Validación mejorada
             $request->validate([
                 'nombre' => 'required|string|max:255',
-                'descripcion' => 'nullable|string',
+                'descripcion' => 'nullable|string|max:500'
             ]);
 
-            $especialidad = Especialidad::create($request->all());
+            // Crear especialidad
+            $especialidadId = DB::table('especialidades')->insertGetId([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Obtener la especialidad creada para devolverla
+            $especialidad = DB::table('especialidades')->where('id', $especialidadId)->first();
 
             return response()->json([
                 'success' => true,
@@ -41,7 +51,7 @@ class EspecialidadController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear especialidad: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -49,7 +59,7 @@ class EspecialidadController extends Controller
     public function show($id)
     {
         try {
-            $especialidad = Especialidad::find($id);
+            $especialidad = DB::table('especialidades')->where('id', $id)->first();
             
             if (!$especialidad) {
                 return response()->json([
@@ -65,7 +75,7 @@ class EspecialidadController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener especialidad: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -73,7 +83,8 @@ class EspecialidadController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $especialidad = Especialidad::find($id);
+            // Verificar que la especialidad existe
+            $especialidad = DB::table('especialidades')->where('id', $id)->first();
             
             if (!$especialidad) {
                 return response()->json([
@@ -82,22 +93,31 @@ class EspecialidadController extends Controller
                 ], 404);
             }
 
+            // Validación para actualización
             $request->validate([
-                'nombre' => 'sometimes|required|string|max:255',
-                'descripcion' => 'nullable|string',
+                'nombre' => 'required|string|max:255',
+                'descripcion' => 'nullable|string|max:500'
             ]);
 
-            $especialidad->update($request->all());
+            // Actualizar especialidad
+            DB::table('especialidades')->where('id', $id)->update([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'updated_at' => now(),
+            ]);
+
+            // Obtener la especialidad actualizada
+            $especialidadActualizada = DB::table('especialidades')->where('id', $id)->first();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Especialidad actualizada exitosamente',
-                'data' => $especialidad
+                'data' => $especialidadActualizada
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar especialidad: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -105,7 +125,7 @@ class EspecialidadController extends Controller
     public function destroy($id)
     {
         try {
-            $especialidad = Especialidad::find($id);
+            $especialidad = DB::table('especialidades')->where('id', $id)->first();
             
             if (!$especialidad) {
                 return response()->json([
@@ -114,7 +134,7 @@ class EspecialidadController extends Controller
                 ], 404);
             }
 
-            $especialidad->delete();
+            DB::table('especialidades')->where('id', $id)->delete();
 
             return response()->json([
                 'success' => true,

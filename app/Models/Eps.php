@@ -13,14 +13,27 @@ class Eps extends Model
     
     protected $fillable = [
         'nombre',
-        'codigo',
-        'telefono',
+        'nit',
         'direccion',
+        'telefono',
+        'email',
         'activo'
     ];
 
-    public function pacientes()
+    protected $casts = [
+        'activo' => 'boolean',
+    ];
+
+    // Scope para EPS activas
+    public function scopeActivas($query)
     {
-        return $this->hasMany(Paciente::class);
+        return $query->where('activo', true);
+    }
+
+    // Scope para buscar por nombre
+    public function scopeBuscar($query, $termino)
+    {
+        return $query->where('nombre', 'like', "%{$termino}%")
+                    ->orWhere('nit', 'like', "%{$termino}%");
     }
 }

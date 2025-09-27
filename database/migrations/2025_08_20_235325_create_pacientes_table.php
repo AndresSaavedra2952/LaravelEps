@@ -1,65 +1,35 @@
 <?php
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Model;
-
-class Paciente extends Model
+return new class extends Migration
 {
-    protected $fillable = [
-        'nombre',
-        'apellido',
-        'cedula',
-        'fecha_nacimiento',
-        'telefono',
-        'email',
-        'direccion',
-        'eps_id',
-        'activo',
-        'user_id'
-    ];
-
-    protected $casts = [
-        'fecha_nacimiento' => 'date',
-        'activo' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
-
-    // Relación con usuario
-    public function user()
+    public function up()
     {
-        return $this->belongsTo(User::class);
+        Schema::create('pacientes', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre');
+            $table->string('apellido');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->string('telefono');
+            $table->date('fecha_nacimiento')->nullable();
+            $table->string('tipo_documento')->nullable();
+            $table->string('numero_documento')->nullable();
+            $table->text('direccion')->nullable();
+            $table->unsignedBigInteger('eps_id')->nullable();
+            $table->boolean('activo')->default(true);
+            $table->timestamps();
+            
+            // ❌ QUITAR ESTA LÍNEA TEMPORALMENTE:
+            // $table->foreign('eps_id')->references('id')->on('eps');
+        });
     }
 
-    // Relación con EPS
-    public function eps()
+    public function down()
     {
-        return $this->belongsTo(Eps::class);
+        Schema::dropIfExists('pacientes');
     }
-
-    // Relación con citas
-    public function citas()
-    {
-        return $this->hasMany(Cita::class);
-    }
-
-    // Scope para pacientes activos
-    public function scopeActivos($query)
-    {
-        return $query->where('activo', true);
-    }
-
-    // Scope para buscar por nombre
-    public function scopePorNombre($query, $nombre)
-    {
-        return $query->where('nombre', 'like', '%' . $nombre . '%')
-                    ->orWhere('apellido', 'like', '%' . $nombre . '%');
-    }
-
-    // Scope para buscar por cédula
-    public function scopePorCedula($query, $cedula)
-    {
-        return $query->where('cedula', 'like', '%' . $cedula . '%');
-    }
-}
+};

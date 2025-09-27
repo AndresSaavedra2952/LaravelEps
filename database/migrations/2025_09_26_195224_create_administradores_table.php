@@ -8,13 +8,13 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('eps', function (Blueprint $table) {
+        Schema::create('administradores', function (Blueprint $table) {
             $table->id();
             $table->string('nombre');
-            $table->string('nit')->unique();
-            $table->string('direccion');
-            $table->string('telefono');
+            $table->string('apellido');
             $table->string('email')->unique();
+            $table->string('password');
+            $table->string('telefono')->nullable();
             $table->boolean('activo')->default(true);
             $table->timestamps();
         });
@@ -22,6 +22,6 @@ return new class extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('eps');
+        Schema::dropIfExists('administradores');
     }
 };

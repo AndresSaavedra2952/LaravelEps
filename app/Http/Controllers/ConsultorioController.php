@@ -1,115 +1,159 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Consultorio;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class ConsultorioController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): JsonResponse
+    public function index()
     {
-        $consultorios = Consultorio::all();
-        return response()->json([
-            'success' => true,
-            'data' => $consultorios
-        ]);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request): JsonResponse
-    {
-        $request->validate([
-            'numero' => 'required|string|max:10',
-            'piso' => 'nullable|string|max:10',
-            'edificio' => 'nullable|string|max:50',
-            'descripcion' => 'nullable|string',
-        ]);
-
-        $consultorio = Consultorio::create($request->all());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Consultorio creado exitosamente',
-            'data' => $consultorio
-        ], 201);
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id): JsonResponse
-    {
-        $consultorio = Consultorio::find($id);
-        
-        if (!$consultorio) {
+        try {
+            $consultorios = DB::table('consultorios')->get();
+            return response()->json([
+                'success' => true,
+                'data' => $consultorios
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Consultorio no encontrado'
-            ], 404);
+                'message' => 'Error al obtener consultorios: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'data' => $consultorio
-        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id): JsonResponse
+    public function store(Request $request)
     {
-        $consultorio = Consultorio::find($id);
-        
-        if (!$consultorio) {
+        try {
+            $request->validate([
+                'nombre' => 'required|string',
+                'ubicacion' => 'required|string',
+                'telefono' => 'required|string',
+                'numero' => 'required|string', // ← AGREGAR ESTA LÍNEA
+                'piso' => 'nullable|string',
+                'edificio' => 'nullable|string',
+                'descripcion' => 'nullable|string'
+            ]);
+
+            $consultorioId = DB::table('consultorios')->insertGetId([
+                'nombre' => $request->nombre,
+                'ubicacion' => $request->ubicacion,
+                'telefono' => $request->telefono,
+                'numero' => $request->numero, // ← AGREGAR ESTA LÍNEA
+                'piso' => $request->piso,
+                'edificio' => $request->edificio,
+                'descripcion' => $request->descripcion,
+                'activo' => 1,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            $consultorio = DB::table('consultorios')->find($consultorioId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Consultorio creado exitosamente',
+                'data' => $consultorio
+            ], 201);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Consultorio no encontrado'
-            ], 404);
+                'message' => 'Error al crear consultorio: ' . $e->getMessage()
+            ], 500);
         }
-
-        $request->validate([
-            'numero' => 'sometimes|required|string|max:10',
-            'piso' => 'nullable|string|max:10',
-            'edificio' => 'nullable|string|max:50',
-            'descripcion' => 'nullable|string',
-        ]);
-
-        $consultorio->update($request->all());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Consultorio actualizado exitosamente',
-            'data' => $consultorio
-        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id): JsonResponse
+    public function show($id)
     {
-        $consultorio = Consultorio::find($id);
-        
-        if (!$consultorio) {
+        try {
+            $consultorio = DB::table('consultorios')->find($id);
+            if (!$consultorio) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Consultorio no encontrado'
+                ], 404);
+            }
+            return response()->json([
+                'success' => true,
+                'data' => $consultorio
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Consultorio no encontrado'
-            ], 404);
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
+    }
 
-        $consultorio->delete(); 
+    public function update(Request $request, $id)
+    {
+        try {
+            $consultorio = DB::table('consultorios')->find($id);
+            if (!$consultorio) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Consultorio no encontrado'
+                ], 404);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Consultorio eliminado exitosamente'
-        ]);
+            $request->validate([
+                'nombre' => 'required|string',
+                'ubicacion' => 'required|string',
+                'telefono' => 'required|string',
+                'numero' => 'required|string', // ← AGREGAR ESTA LÍNEA
+                'piso' => 'nullable|string',
+                'edificio' => 'nullable|string',
+                'descripcion' => 'nullable|string'
+            ]);
+
+            DB::table('consultorios')->where('id', $id)->update([
+                'nombre' => $request->nombre,
+                'ubicacion' => $request->ubicacion,
+                'telefono' => $request->telefono,
+                'numero' => $request->numero, // ← AGREGAR ESTA LÍNEA
+                'piso' => $request->piso,
+                'edificio' => $request->edificio,
+                'descripcion' => $request->descripcion,
+                'updated_at' => now()
+            ]);
+
+            $consultorioActualizado = DB::table('consultorios')->find($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Consultorio actualizado exitosamente',
+                'data' => $consultorioActualizado
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $consultorio = DB::table('consultorios')->find($id);
+            if (!$consultorio) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Consultorio no encontrado'
+                ], 404);
+            }
+
+            DB::table('consultorios')->where('id', $id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Consultorio eliminado exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar consultorio: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

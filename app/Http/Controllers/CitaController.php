@@ -1,93 +1,220 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Cita;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class CitaController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): JsonResponse
+    public function index()
     {
-        $citas = Cita::with(['paciente', 'medico.especialidad'])->get();
-        return response()->json([
-            'success' => true,
-            'data' => $citas
-        ]);
+        try {
+            $citas = DB::table('citas')
+                ->leftJoin('pacientes', 'citas.paciente_id', '=', 'pacientes.id')
+                ->leftJoin('medicos', 'citas.medico_id', '=', 'medicos.id')
+                ->leftJoin('especialidades', 'medicos.especialidad_id', '=', 'especialidades.id')
+                ->select(
+                    'citas.*',
+                    'pacientes.nombre as paciente_nombre',
+                    'pacientes.apellido as paciente_apellido',
+                    'medicos.nombre as medico_nombre',
+                    'medicos.apellido as medico_apellido',
+                    'especialidades.nombre as especialidad_nombre'
+                )
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $citas
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener citas: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
-        $request->validate([
-            'paciente_id' => 'required|exists:pacientes,id',
-            'medico_id' => 'required|exists:medicos,id',
-            'fecha_hora' => 'required|date|after:now',
-            'estado' => 'in:programada,confirmada,cancelada,completada',
-            'motivo_consulta' => 'required|string',
-            'observaciones' => 'nullable|string'
-        ]);
+        try {
+            $request->validate([
+                'paciente_id' => 'required|exists:pacientes,id',
+                'medico_id' => 'required|exists:medicos,id',
+                'fecha' => 'required|date',
+                'hora' => 'required|string',
+                'motivo' => 'required|string',
+                'observaciones' => 'nullable|string', // ← AGREGAR ESTA LÍNEA
+                'estado' => 'nullable|string|in:programada,confirmada,completada,cancelada'
+            ]);
 
-        $cita = Cita::create($request->all());
+            // Crear fecha_hora combinando fecha y hora
+            $fechaHora = $request->fecha . ' ' . $request->hora . ':00';
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cita creada exitosamente',
-            'data' => $cita->load(['paciente', 'medico.especialidad'])
-        ], 201);
+            $citaId = DB::table('citas')->insertGetId([
+                'paciente_id' => $request->paciente_id,
+                'medico_id' => $request->medico_id,
+                'fecha' => $request->fecha,
+                'hora' => $request->hora,
+                'fecha_hora' => $fechaHora,
+                'motivo_consulta' => $request->motivo,
+                'observaciones' => $request->observaciones, // ← AGREGAR ESTA LÍNEA
+                'estado' => $request->estado ?? 'programada',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            $cita = DB::table('citas')
+                ->leftJoin('pacientes', 'citas.paciente_id', '=', 'pacientes.id')
+                ->leftJoin('medicos', 'citas.medico_id', '=', 'medicos.id')
+                ->leftJoin('especialidades', 'medicos.especialidad_id', '=', 'especialidades.id')
+                ->select(
+                    'citas.*',
+                    'pacientes.nombre as paciente_nombre',
+                    'pacientes.apellido as paciente_apellido',
+                    'medicos.nombre as medico_nombre',
+                    'medicos.apellido as medico_apellido',
+                    'especialidades.nombre as especialidad_nombre'
+                )
+                ->where('citas.id', $citaId)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita creada exitosamente',
+                'data' => $cita
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear cita: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Cita $cita): JsonResponse
+    public function show($id)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $cita->load(['paciente', 'medico.especialidad'])
-        ]);
+        try {
+            $cita = DB::table('citas')
+                ->leftJoin('pacientes', 'citas.paciente_id', '=', 'pacientes.id')
+                ->leftJoin('medicos', 'citas.medico_id', '=', 'medicos.id')
+                ->leftJoin('especialidades', 'medicos.especialidad_id', '=', 'especialidades.id')
+                ->select(
+                    'citas.*',
+                    'pacientes.nombre as paciente_nombre',
+                    'pacientes.apellido as paciente_apellido',
+                    'medicos.nombre as medico_nombre',
+                    'medicos.apellido as medico_apellido',
+                    'especialidades.nombre as especialidad_nombre'
+                )
+                ->where('citas.id', $id)
+                ->first();
+
+            if (!$cita) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cita no encontrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $cita
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Cita $cita): JsonResponse
+    public function update(Request $request, $id)
     {
-        $request->validate([
-            'paciente_id' => 'required|exists:pacientes,id',
-            'medico_id' => 'required|exists:medicos,id',
-            'fecha_hora' => 'required|date',
-            'estado' => 'in:programada,confirmada,cancelada,completada',
-            'motivo_consulta' => 'required|string',
-            'observaciones' => 'nullable|string'
-        ]);
+        try {
+            $cita = DB::table('citas')->find($id);
+            if (!$cita) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cita no encontrada'
+                ], 404);
+            }
 
-        $cita->update($request->all());
+            $request->validate([
+                'paciente_id' => 'required|exists:pacientes,id',
+                'medico_id' => 'required|exists:medicos,id',
+                'fecha' => 'required|date',
+                'hora' => 'required|string',
+                'motivo' => 'required|string',
+                'observaciones' => 'nullable|string', // ← AGREGAR ESTA LÍNEA
+                'estado' => 'nullable|string|in:programada,confirmada,completada,cancelada'
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cita actualizada exitosamente',
-            'data' => $cita->load(['paciente', 'medico.especialidad'])
-        ]);
+            // Crear fecha_hora combinando fecha y hora
+            $fechaHora = $request->fecha . ' ' . $request->hora . ':00';
+
+            DB::table('citas')->where('id', $id)->update([
+                'paciente_id' => $request->paciente_id,
+                'medico_id' => $request->medico_id,
+                'fecha' => $request->fecha,
+                'hora' => $request->hora,
+                'fecha_hora' => $fechaHora,
+                'motivo_consulta' => $request->motivo,
+                'observaciones' => $request->observaciones, // ← AGREGAR ESTA LÍNEA
+                'estado' => $request->estado ?? 'programada',
+                'updated_at' => now()
+            ]);
+
+            $citaActualizada = DB::table('citas')
+                ->leftJoin('pacientes', 'citas.paciente_id', '=', 'pacientes.id')
+                ->leftJoin('medicos', 'citas.medico_id', '=', 'medicos.id')
+                ->leftJoin('especialidades', 'medicos.especialidad_id', '=', 'especialidades.id')
+                ->select(
+                    'citas.*',
+                    'pacientes.nombre as paciente_nombre',
+                    'pacientes.apellido as paciente_apellido',
+                    'medicos.nombre as medico_nombre',
+                    'medicos.apellido as medico_apellido',
+                    'especialidades.nombre as especialidad_nombre'
+                )
+                ->where('citas.id', $id)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita actualizada exitosamente',
+                'data' => $citaActualizada
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Cita $cita): JsonResponse
+    public function destroy($id)
     {
-        $cita->delete();
+        try {
+            $cita = DB::table('citas')->find($id);
+            if (!$cita) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cita no encontrada'
+                ], 404);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cita eliminada exitosamente'
-        ]);
+            DB::table('citas')->where('id', $id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita eliminada exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar cita: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
